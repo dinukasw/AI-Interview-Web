@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import React from "react";
 import { Button } from "@/components/ui/button"
+import Link from "next/link";
 
 function Hero() {
     return (
@@ -74,9 +75,11 @@ function Hero() {
                         }}
                         className="relative z-10 mt-8 flex flex-wrap items-center justify-center gap-4"
                     >
-                        <Button size="lg">
-                            Explore Now
-                        </Button>
+                        <Link href={"/dashboard"}>
+                            <Button size="lg">
+                                Explore Now
+                            </Button>
+                        </Link>
                         <Button size="lg" variant="outline">
                             Contact Support
                         </Button>
