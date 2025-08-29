@@ -1,7 +1,11 @@
-
+import Header from "./_components/Header";
+import Hero from "./_components/Hero";
 
 export default function Home() {
-    return <div>
-        Welcome to Home Page
-    </div>;
+    return (
+        <main>
+            <Header />
+            <Hero />
+        </main>
+    );
 }
