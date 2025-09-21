@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ResumeUpload from "./ResumeUpload";
 import JobDescription from "./JobDescription";
 import { DialogClose } from "@radix-ui/react-dialog";
+import axios from "axios";
 
 function CreateInterviewDialog() {
     const [formData, setFormData] = useState<any>({
@@ -20,14 +21,38 @@ function CreateInterviewDialog() {
         jobTitle: "",
         jobDescription: "",
     });
+    const [file, setFile] = useState<File | null>();
+    const [loading, setLoading] = useState(false);
 
+    const onSubmit = async () => {
+        if (!file) return;
+        setLoading(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await axios.post(
+                "/api/generate-interview-questions",
+                formData
+            );
+            console.log(res.data);
+        } catch (error: any) {
+            console.error(
+                "Upload failed:",
+                error.response?.data || error.message
+            );
+        
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const onHandleInputChange = (field: string, value: string) => {
         setFormData((prevData: any) => ({
             ...prevData,
             [field]: value,
         }));
-    }
+    };
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -50,10 +75,14 @@ function CreateInterviewDialog() {
                                 </TabsTrigger>
                             </TabsList>
                             <TabsContent value="resume-upload">
-                                <ResumeUpload />
+                                <ResumeUpload
+                                    setFiles={(file: any) => setFile(file)}
+                                />
                             </TabsContent>
                             <TabsContent value="job-description">
-                                <JobDescription onChange={onHandleInputChange} />
+                                <JobDescription
+                                    onChange={onHandleInputChange}
+                                />
                             </TabsContent>
                         </Tabs>
                     </DialogDescription>
@@ -62,7 +91,9 @@ function CreateInterviewDialog() {
                     <DialogClose>
                         <Button variant={"ghost"}>Cancle</Button>
                     </DialogClose>
-                    <Button>Submit</Button>
+                    <Button onClick={onSubmit} disabled={loading || !file}>
+                        Submit
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
