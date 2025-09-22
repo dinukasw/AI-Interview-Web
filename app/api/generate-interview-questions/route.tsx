@@ -31,15 +31,11 @@ export async function POST(req: NextRequest) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        console.log("Attempting ImageKit upload...");
-
         const uploadPdf = await imagekit.upload({
             file: buffer,
             fileName: `${Date.now()}-${file.name}`,
             isPrivateFile: false,
         });
-
-        console.log("ImageKit upload successful:", uploadPdf.url);
 
         // Call n8n webhook with better error handling
         try {
@@ -49,18 +45,25 @@ export async function POST(req: NextRequest) {
                     resumeUrl: uploadPdf?.url,
                 },
                 {
-                    timeout: 30000, // 30 second timeout
+                    timeout: 120000,
                     headers: {
                         "Content-Type": "application/json",
                     },
                 }
             );
 
-            console.log("n8n webhook response:", result.data);
+            const questionsText =
+                result.data.candidates[0].content.parts[0].text;
+            const interviewQuestions = JSON.parse(questionsText);
+
             return NextResponse.json(
                 {
                     url: uploadPdf.url,
-                    webhookData: result.data,
+                    interviewQuestions: interviewQuestions, // Clean array of questions
+                    metadata: {
+                        modelVersion: result.data.modelVersion,
+                        totalTokens: result.data.usageMetadata?.totalTokenCount,
+                    },
                 },
                 { status: 200 }
             );

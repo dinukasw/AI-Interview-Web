@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
-import { a, data } from "framer-motion/client";
 
 export const CreateNewUser = mutation({
     args: {
@@ -11,7 +10,7 @@ export const CreateNewUser = mutation({
     handler: async (ctx, args) => {
         //if user already exist
         const user = await ctx.db
-            .query("userTable")
+            .query("UserTable")
             .filter((q) => q.eq(q.field("email"), args.email))
             .collect();
 
@@ -22,7 +21,7 @@ export const CreateNewUser = mutation({
                 imageUrl: args.imageUrl,
                 email: args.email,
             };
-            const result = await ctx.db.insert("userTable", { ...data });
+            const result = await ctx.db.insert("UserTable", { ...data });
 
             return {
                 ...data,
