@@ -20,30 +20,42 @@ export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
         const file = formData.get("file") as File;
+        const jobTitle = formData.get("jobTitle") as string;
+        const jobDescription = formData.get("jobDescription") as string;
 
-        if (!file || !(file instanceof File)) {
+        let resumeUrl = "";
+        
+        if (file) {
+            // Handle file upload
+            const bytes = await file.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+
+            const uploadPdf = await imagekit.upload({
+                file: buffer,
+                fileName: `${Date.now()}-${file.name}`,
+                isPrivateFile: false,
+            });
+            
+            resumeUrl = uploadPdf.url;
+        } else if (!jobTitle || !jobDescription) {
+            // Validate that either file exists or both job fields are provided
             return NextResponse.json(
-                { error: "No valid file provided" },
+                {
+                    error: "Either resume file or both job title and job description are required",
+                },
                 { status: 400 }
             );
         }
 
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-
-        const uploadPdf = await imagekit.upload({
-            file: buffer,
-            fileName: `${Date.now()}-${file.name}`,
-            isPrivateFile: false,
-        });
-
         // Call n8n webhook with better error handling
         try {
+            const webhookPayload = file 
+                ? { resumeUrl } 
+                : { jobTitle, jobDescription };
+
             const result = await axios.post(
                 n8nWebhookUrl,
-                {
-                    resumeUrl: uploadPdf?.url,
-                },
+                webhookPayload,
                 {
                     timeout: 120000,
                     headers: {
@@ -52,17 +64,15 @@ export async function POST(req: NextRequest) {
                 }
             );
 
-            const questionsText =
-                result.data.candidates[0].content.parts[0].text;
+            const questionsText = result.data.content.parts[0].text;
             const interviewQuestions = JSON.parse(questionsText);
 
             return NextResponse.json(
                 {
-                    url: uploadPdf.url,
-                    interviewQuestions: interviewQuestions, // Clean array of questions
+                    url: resumeUrl,
+                    interviewQuestions: interviewQuestions,
                     metadata: {
-                        modelVersion: result.data.modelVersion,
-                        totalTokens: result.data.usageMetadata?.totalTokenCount,
+                        finishReason: result.data.finishReason,
                     },
                 },
                 { status: 200 }
@@ -74,12 +84,12 @@ export async function POST(req: NextRequest) {
                 webhookError.response?.data
             );
 
-            // Return success with file URL but note webhook failure
             return NextResponse.json(
                 {
-                    url: uploadPdf.url,
-                    warning:
-                        "File uploaded successfully but webhook processing failed",
+                    url: resumeUrl,
+                    warning: file 
+                        ? "File uploaded successfully but webhook processing failed"
+                        : "Webhook processing failed",
                     error: webhookError.message,
                 },
                 { status: 200 }
@@ -89,7 +99,7 @@ export async function POST(req: NextRequest) {
         console.error("Upload error:", error);
         return NextResponse.json(
             {
-                error: "File upload failed",
+                error: File ? "File upload failed" : "Request processing failed",
                 details: error.message,
             },
             { status: 500 }

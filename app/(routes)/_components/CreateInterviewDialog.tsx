@@ -33,15 +33,18 @@ function CreateInterviewDialog() {
     );
 
     const onSubmit = async () => {
-        if (!file) return;
         setLoading(true);
-        const formData = new FormData();
-        formData.append("file", file);
+        const formData_ = new FormData();
+        if (file) {
+            formData_.append("file", file);
+        }
+        formData_.append("jobTitle", formData.jobTitle);
+        formData_.append("jobDescription", formData.jobDescription);
 
         try {
             const res = await axios.post(
                 "/api/generate-interview-questions",
-                formData
+                formData_
             );
             console.log(res.data);
 
@@ -50,12 +53,11 @@ function CreateInterviewDialog() {
                 questions: res?.data.interviewQuestions,
                 resumeUrl: res.data.url,
                 uid: userDetail?._id,
+                jobTitle: formData?.jobTitle,
+                jobDescription: formData?.jobDescription,
             });
 
-            console.log(response);
-            
-
-            console.log(response);
+            console.log("Interview saved successfully:", response);
         } catch (error: any) {
             console.error(
                 "Upload failed:",
@@ -110,7 +112,15 @@ function CreateInterviewDialog() {
                     <DialogClose>
                         <Button variant={"ghost"}>Cancle</Button>
                     </DialogClose>
-                    <Button onClick={onSubmit} disabled={loading || !file}>
+                    <Button
+                        onClick={onSubmit}
+                        disabled={
+                            loading ||
+                            (!file &&
+                                (!formData.jobTitle ||
+                                    !formData.jobDescription))
+                        }
+                    >
                         {loading && <Loader2Icon className="animate-spin" />}
                         Submit
                     </Button>
