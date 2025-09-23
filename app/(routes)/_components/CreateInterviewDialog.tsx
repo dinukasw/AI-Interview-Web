@@ -48,6 +48,12 @@ function CreateInterviewDialog() {
             );
             console.log(res.data);
 
+
+            if(res?.data?.status === 409){
+                console.log(res?.data?.result);
+                
+            }
+
             //save to db
             const response = await saveInterviewQuestion({
                 questions: res?.data.interviewQuestions,

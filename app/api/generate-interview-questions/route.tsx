@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import ImageKit from "imagekit";
 import axios from "axios";
+import { aj } from "@/utils/arcjet";
+import { currentUser } from "@clerk/nextjs/server";
 const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL!;
 
 const publicKey = process.env.IMAGEKIT_PUBLIC_KEY!;
@@ -18,13 +20,28 @@ var imagekit = new ImageKit({
 
 export async function POST(req: NextRequest) {
     try {
+        const user = await currentUser();
         const formData = await req.formData();
         const file = formData.get("file") as File;
         const jobTitle = formData.get("jobTitle") as string;
         const jobDescription = formData.get("jobDescription") as string;
 
-        let resumeUrl = "";
+        const decision = await aj.protect(req, {
+            userId: user?.primaryEmailAddress?.emailAddress ?? "",
+            requested: 5,
+        }); // Deduct 5 tokens from the bucket
+        console.log("Arcjet decision", decision);
+
         
+        if (decision?.isDenied()) {
+            return NextResponse.json(
+                { error: "You have exceeded your request limit. Please try again after 24 hours.", reason: decision.reason },
+                { status: 429 }
+            );
+        }
+
+        let resumeUrl = "";
+
         if (file) {
             // Handle file upload
             const bytes = await file.arrayBuffer();
@@ -35,7 +52,7 @@ export async function POST(req: NextRequest) {
                 fileName: `${Date.now()}-${file.name}`,
                 isPrivateFile: false,
             });
-            
+
             resumeUrl = uploadPdf.url;
         } else if (!jobTitle || !jobDescription) {
             // Validate that either file exists or both job fields are provided
@@ -49,20 +66,16 @@ export async function POST(req: NextRequest) {
 
         // Call n8n webhook with better error handling
         try {
-            const webhookPayload = file 
-                ? { resumeUrl } 
+            const webhookPayload = file
+                ? { resumeUrl }
                 : { jobTitle, jobDescription };
 
-            const result = await axios.post(
-                n8nWebhookUrl,
-                webhookPayload,
-                {
-                    timeout: 120000,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
+            const result = await axios.post(n8nWebhookUrl, webhookPayload, {
+                timeout: 120000,
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
 
             const questionsText = result.data.content.parts[0].text;
             const interviewQuestions = JSON.parse(questionsText);
@@ -87,7 +100,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json(
                 {
                     url: resumeUrl,
-                    warning: file 
+                    warning: file
                         ? "File uploaded successfully but webhook processing failed"
                         : "Webhook processing failed",
                     error: webhookError.message,
@@ -99,7 +112,9 @@ export async function POST(req: NextRequest) {
         console.error("Upload error:", error);
         return NextResponse.json(
             {
-                error: File ? "File upload failed" : "Request processing failed",
+                error: File
+                    ? "File upload failed"
+                    : "Request processing failed",
                 details: error.message,
             },
             { status: 500 }
