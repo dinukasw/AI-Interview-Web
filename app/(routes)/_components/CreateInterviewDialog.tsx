@@ -18,6 +18,8 @@ import { Loader2Icon } from "lucide-react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { UserDetailContext } from "@/context/UserDetailContext";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 function CreateInterviewDialog() {
     const [formData, setFormData] = useState<any>({
@@ -28,6 +30,7 @@ function CreateInterviewDialog() {
     const [file, setFile] = useState<File | null>();
     const [loading, setLoading] = useState(false);
     const { userDetail, setUserDetail } = useContext(UserDetailContext);
+    const router = useRouter();
     const saveInterviewQuestion = useMutation(
         api.Interview.SaveInterviewQuestion
     );
@@ -48,10 +51,12 @@ function CreateInterviewDialog() {
             );
             console.log(res.data);
 
-
-            if(res?.data?.status === 409){
+            if (res?.data?.status == 409) {
+                toast.warning(
+                    "You have reached your limit. Please upgrade your plan."
+                );
                 console.log(res?.data?.result);
-                
+                return;
             }
 
             //save to db
@@ -62,6 +67,8 @@ function CreateInterviewDialog() {
                 jobTitle: formData?.jobTitle,
                 jobDescription: formData?.jobDescription,
             });
+
+            router.push(`/interview/${response}`);
 
             console.log("Interview saved successfully:", response);
         } catch (error: any) {

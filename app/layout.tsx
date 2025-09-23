@@ -10,6 +10,7 @@ import {
     UserButton,
 } from "@clerk/nextjs";
 import { ConvexClientProvider } from "./ConvexClientProvider";
+import { Toaster } from "@/components/ui/sonner";
 
 const outfit = Outfit({ subsets: ["latin"] });
 
@@ -27,7 +28,9 @@ export default function RootLayout({
         <ClerkProvider>
             <html lang="en">
                 <body className={outfit.className}>
-                    <ConvexClientProvider>{children}</ConvexClientProvider>
+                    <ConvexClientProvider>
+                        {children} <Toaster />
+                    </ConvexClientProvider>
                 </body>
             </html>
         </ClerkProvider>
